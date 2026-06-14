@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASMR Roleplay</title>
+<style>
+  /* ── Design tokens ─────────────────────────────────────── */
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #13131e;
+    --card:      #1a1a2e;
+    --border:    #2a2a4a;
+    --accent:    #c084fc;        /* soft violet — Yae Miko's colour */
+    --accent2:   #818cf8;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --success:   #34d399;
+    --error:     #f87171;
+    --font:      'Segoe UI', system-ui, sans-serif;
+    --mono:      'Consolas', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── Header ──────────────────────────────────────────────── */
+  header {
+    width: 100%;
+    padding: 24px 0 16px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #16102a 0%, transparent 100%);
+  }
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+  }
+  header p {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  /* ── Main layout ─────────────────────────────────────────── */
+  main {
+    width: 100%;
+    max-width: 820px;
+    padding: 32px 20px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* ── Card ────────────────────────────────────────────────── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+  }
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 20px;
+  }
+
+  /* ── Form ────────────────────────────────────────────────── */
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  label { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
+
+  input, textarea, select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.95rem;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(192,132,252,0.12);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  select option { background: var(--surface); }
+
+  /* Duration row */
+  .row { display: flex; gap: 12px; }
+  .row .field { flex: 1; }
+
+  /* ── Button ──────────────────────────────────────────────── */
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 12px;
+    font-family: var(--font);
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-size: 1rem;
+    padding: 14px 28px;
+    width: 100%;
+  }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.12); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Status bar ──────────────────────────────────────────── */
+  #status-bar {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #status-bar.hidden { display: none !important; }
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #status-text { color: var(--muted); font-size: 0.92rem; }
+
+  /* ── Script viewer ───────────────────────────────────────── */
+  #script-section { display: none; }
+  #script-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    font-size: 0.88rem;
+    line-height: 1.75;
+    font-family: var(--mono);
+    color: #cbd5e1;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 340px;
+    overflow-y: auto;
+  }
+  /* Colour-code the ASMR tags */
+  .tag-whisper  { color: #a78bfa; font-style: italic; }
+  .tag-pause    { color: #60a5fa; }
+  .tag-sound    { color: #34d399; }
+  .tag-soft     { color: #f9a8d4; }
+
+  /* ── Audio player ────────────────────────────────────────── */
+  #audio-section { display: none; }
+  #player-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  audio {
+    width: 100%;
+    border-radius: 8px;
+    accent-color: var(--accent);
+  }
+  .btn-download {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 0.88rem;
+    padding: 8px 20px;
+  }
+  .btn-download:hover { background: rgba(192,132,252,0.1); }
+
+  /* ── Scrollbar ───────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>✦ ASMR Roleplay ✦</h1>
+  <p>Let your favourite characters whisper you into calm</p>
+</header>
+
+<main>
+
+  <!-- ── Input Form ──────────────────────────────────────── -->
+  <div class="card">
+    <h2>Create your session</h2>
+
+    <div class="field">
+      <label>Character</label>
+      <select id="character">
+        <!-- Populated by JS from /characters endpoint -->
+        <option value="yae_miko">Yae Miko</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Scenario / Topic</label>
+      <textarea id="topic" placeholder="e.g. Yae Miko invites you to her shrine library on a rainy evening and reads to you by candlelight…"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Mood &amp; Tone</label>
+      <input id="mood" type="text" placeholder="e.g. gentle, dreamy, warmly teasing" value="gentle and dreamy">
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Duration (seconds)</label>
+        <input id="duration" type="number" min="10" max="600" value="90">
+      </div>
+      <div class="field">
+        <label>Speaking speed</label>
+        <select id="speed">
+          <option value="0.80">Very slow (0.80×)</option>
+          <option value="0.88" selected>Slow / ASMR (0.88×)</option>
+          <option value="0.95">Normal (0.95×)</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="generate-btn" onclick="startGeneration()">
+      ✦ Generate ASMR Session
+    </button>
+  </div>
+
+  <!-- ── Status ────────────────────────────────────────────── -->
+  <div id="status-bar" class="hidden">
+    <div class="spinner"></div>
+    <span id="status-text">Starting…</span>
+  </div>
+
+  <!-- ── Script viewer ─────────────────────────────────────── -->
+  <div class="card" id="script-section">
+    <h2>Generated Script</h2>
+    <div id="script-box"></div>
+  </div>
+
+  <!-- ── Audio player ──────────────────────────────────────── -->
+  <div class="card" id="audio-section">
+    <h2>Your ASMR Session</h2>
+    <div id="player-wrap">
+      <audio id="audio-player" controls></audio>
+      <button class="btn-download" id="download-btn">⬇ Download WAV</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// APP LOGIC
+// ═══════════════════════════════════════════════════════════════
+
+let currentSessionId = null;
+let pollInterval     = null;
+
+// ── Load character list from server ──────────────────────────
+async function loadCharacters() {
+  try {
+    const res = await fetch('/characters');
+    const list = await res.json();
+    const sel = document.getElementById('character');
+    sel.innerHTML = list.map(c =>
+      `<option value="${c.id}">${c.name}</option>`
+    ).join('');
+  } catch { /* keep default option */ }
+}
+loadCharacters();
+
+// ── Main generation flow ──────────────────────────────────────
+async function startGeneration() {
+  const topic   = document.getElementById('topic').value.trim();
+  const mood    = document.getElementById('mood').value.trim();
+  const duration = parseInt(document.getElementById('duration').value);
+  const character = document.getElementById('character').value;
+  const speed   = parseFloat(document.getElementById('speed').value);
+
+  if (!topic) { alert('Please describe a scenario first!'); return; }
+  if (isNaN(duration) || duration < 10) { alert('Duration must be at least 10 seconds.'); return; }
+
+  // Reset UI
+  resetUI();
+  setStatus('Asking Gemini to write your script…');
+  document.getElementById('generate-btn').disabled = true;
+
+  try {
+    // POST /generate — returns script immediately, queues audio
+    const res = await fetch('/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, mood, duration, character, speed }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Server error');
+    }
+
+    const data = await res.json();
+    currentSessionId = data.session_id;
+
+    // Show the script right away
+    showScript(data.script);
+    setStatus('Script ready ✦  Now generating audio — this takes 1–3 minutes…');
+
+    // Poll for audio completion
+    pollInterval = setInterval(pollStatus, 3000);
+
+  } catch (err) {
+    setError('Error: ' + err.message);
+    document.getElementById('generate-btn').disabled = false;
+  }
+}
+
+// ── Poll /status until audio is ready ────────────────────────
+async function pollStatus() {
+  if (!currentSessionId) return;
+  try {
+    const res  = await fetch(`/status/${currentSessionId}`);
+    const data = await res.json();
+
+    if (data.status === 'ready') {
+      clearInterval(pollInterval);
+      showAudioPlayer();
+    } else if (data.status === 'error') {
+      clearInterval(pollInterval);
+      setError('Audio generation failed: ' + (data.error || 'unknown error'));
+      document.getElementById('generate-btn').disabled = false;
+    }
+    // 'generating' → keep polling
+  } catch { /* network blip — try again next tick */ }
+}
+
+// ── UI helpers ────────────────────────────────────────────────
+
+function resetUI() {
+  currentSessionId = null;
+  clearInterval(pollInterval);
+  document.getElementById('script-section').style.display = 'none';
+  document.getElementById('audio-section').style.display  = 'none';
+  document.getElementById('status-bar').classList.remove('hidden');
+}
+
+function setStatus(msg) {
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('status-bar').classList.remove('hidden');
+  // Show spinner (not error state)
+  document.querySelector('.spinner').style.display = 'block';
+}
+
+function setError(msg) {
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('status-text').style.color = 'var(--error)';
+  document.querySelector('.spinner').style.display = 'none';
+}
+
+function showScript(script) {
+  document.getElementById('script-section').style.display = 'block';
+  // Highlight the ASMR tags in a different colour
+  const highlighted = script
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/(\[(?:whisper|\/whisper)[^\]]*\])/g,  '<span class="tag-whisper">$1</span>')
+    .replace(/(\[(?:soft|\/soft)[^\]]*\])/g,         '<span class="tag-soft">$1</span>')
+    .replace(/(\[pause:[^\]]+\])/g,                  '<span class="tag-pause">$1</span>')
+    .replace(/(\[(?:chuckle|sigh|breathe|hm)\])/g,  '<span class="tag-sound">$1</span>');
+  document.getElementById('script-box').innerHTML = highlighted;
+}
+
+function showAudioPlayer() {
+  const url = `/audio/${currentSessionId}`;
+  document.getElementById('audio-player').src = url;
+  document.getElementById('download-btn').onclick = () => {
+    const a = document.createElement('a');
+    a.href = url; a.download = 'asmr_session.wav'; a.click();
+  };
+  document.getElementById('audio-section').style.display = 'block';
+  document.getElementById('status-bar').classList.add('hidden');
+  document.getElementById('generate-btn').disabled = false;
+  // Smoothly scroll to the player
+  document.getElementById('audio-section').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
